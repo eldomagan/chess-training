@@ -23,6 +23,15 @@ export interface GameState {
   isComplete: boolean;
   isCorrect: boolean;
   message: string;
+  /**
+   * Niveau d'indice:
+   * 0 - aucun indice
+   * 1 - pièce à jouer mise en évidence
+   * 2 - coup affiché avec une flèche
+   */
+  hintLevel: number;
+  hintFrom: string | null;
+  hintTo: string | null;
 }
 
 export interface MoveResult {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Chessboard } from 'react-chessboard';
 import { useChessGame } from './hooks/useChessGame';
 import { OpeningSelector } from './components/OpeningSelector';
@@ -19,6 +19,25 @@ function App() {
     backToSelection 
   } = useChessGame();
   const [showSolution, setShowSolution] = useState(false);
+
+  const hintSquareStyles = useMemo(() => {
+    if (gameState.hintLevel >= 1 && gameState.hintFrom) {
+      return {
+        [gameState.hintFrom]: {
+          backgroundColor: 'rgba(255, 255, 0, 0.4)',
+          animation: 'hint-blink 1s ease-in-out infinite'
+        }
+      } as Record<string, React.CSSProperties>;
+    }
+    return {};
+  }, [gameState.hintLevel, gameState.hintFrom]);
+
+  const hintArrows = useMemo(() => {
+    if (gameState.hintLevel >= 2 && gameState.hintFrom && gameState.hintTo) {
+      return [[gameState.hintFrom, gameState.hintTo, 'green']];
+    }
+    return [] as [string, string, string?][];
+  }, [gameState.hintLevel, gameState.hintFrom, gameState.hintTo]);
 
   const onDrop = (sourceSquare: string, targetSquare: string) => {
     const result = makeMove(sourceSquare, targetSquare);
@@ -60,6 +79,8 @@ function App() {
                   customLightSquareStyle={{ backgroundColor: '#F5E6D3' }}
                   customPremoveDarkSquareStyle={{ backgroundColor: '#C4A484' }}
                   customPremoveLightSquareStyle={{ backgroundColor: '#F0E1CE' }}
+                  customSquareStyles={hintSquareStyles}
+                  customArrows={hintArrows}
                 />
               </div>
             </div>

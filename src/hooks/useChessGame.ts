@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { Chess } from 'chess.js';
-import { Opening, OpeningLine, GameState, MoveResult } from '../types/chess';
+import { Opening, GameState, MoveResult } from '../types/chess';
 import { getRandomLine } from '../data/openings';
 
 export function useChessGame() {
@@ -12,7 +12,10 @@ export function useChessGame() {
     userMoves: [],
     isComplete: false,
     isCorrect: true,
-    message: 'Sélectionnez une ouverture pour commencer'
+    message: 'Sélectionnez une ouverture pour commencer',
+    hintLevel: 0,
+    hintFrom: null,
+    hintTo: null
   });
 
   const setOpening = useCallback((opening: Opening) => {
@@ -23,7 +26,10 @@ export function useChessGame() {
       userMoves: [],
       isComplete: false,
       isCorrect: true,
-      message: `Ouverture sélectionnée: ${opening.name}. Cliquez sur "Nouvelle ligne" pour commencer.`
+      message: `Ouverture sélectionnée: ${opening.name}. Cliquez sur "Nouvelle ligne" pour commencer.`,
+      hintLevel: 0,
+      hintFrom: null,
+      hintTo: null
     });
   }, []);
 
@@ -41,7 +47,7 @@ export function useChessGame() {
       try {
         const madeMove = game.move(move);
         userMoves.push(madeMove.san);
-      } catch (error) {
+      } catch {
         console.error('Invalid starting move:', move);
       }
     }
@@ -63,9 +69,12 @@ export function useChessGame() {
           userMoves,
           isComplete: false,
           isCorrect: true,
-          message
+          message,
+          hintLevel: 0,
+          hintFrom: null,
+          hintTo: null
         });
-      } catch (error) {
+      } catch {
         console.error('Invalid black move:', newLine.moves[nextMoveIndex]);
       }
     } else {
@@ -77,7 +86,10 @@ export function useChessGame() {
         userMoves,
         isComplete: false,
         isCorrect: true,
-        message
+        message,
+        hintLevel: 0,
+        hintFrom: null,
+        hintTo: null
       });
     }
   }, [game, gameState.currentOpening]);
@@ -121,7 +133,7 @@ export function useChessGame() {
               } else {
                 message = `Bien joué ! Les noirs répondent ${blackMove.san}. Continuez !`;
               }
-            } catch (error) {
+            } catch {
               console.error('Invalid black move:', nextMove);
             }
           }
@@ -133,7 +145,10 @@ export function useChessGame() {
           userMoves: newUserMoves,
           isComplete,
           isCorrect: true,
-          message
+          message,
+          hintLevel: 0,
+          hintFrom: null,
+          hintTo: null
         }));
 
         return {
@@ -151,7 +166,10 @@ export function useChessGame() {
         setGameState(prev => ({
           ...prev,
           isCorrect: false,
-          message: errorMessage
+          message: errorMessage,
+          hintLevel: 0,
+          hintFrom: null,
+          hintTo: null
         }));
 
         return {
@@ -161,7 +179,7 @@ export function useChessGame() {
           isComplete: false
         };
       }
-    } catch (error) {
+    } catch {
       return {
         isValid: false,
         expectedMove: null,
@@ -173,15 +191,32 @@ export function useChessGame() {
 
   const showHint = useCallback(() => {
     if (!gameState.currentLine || gameState.isComplete) return;
-    
+
     const expectedMove = gameState.currentLine.moves[gameState.moveIndex];
-    if (expectedMove) {
+    if (!expectedMove) return;
+
+    const clone = new Chess(game.fen());
+    const parsed = clone.move(expectedMove, { sloppy: true });
+    if (!parsed) return;
+
+    if (gameState.hintLevel === 0) {
       setGameState(prev => ({
         ...prev,
-        message: `Indice: Le coup théorique est ${expectedMove}`
+        hintLevel: 1,
+        hintFrom: parsed.from,
+        hintTo: null,
+        message: `Indice: Regardez la pièce sur ${parsed.from}`
+      }));
+    } else if (gameState.hintLevel === 1) {
+      setGameState(prev => ({
+        ...prev,
+        hintLevel: 2,
+        hintFrom: parsed.from,
+        hintTo: parsed.to,
+        message: `Indice: Le coup est ${parsed.san}`
       }));
     }
-  }, [gameState]);
+  }, [game, gameState]);
 
   const resetPosition = useCallback(() => {
     if (!gameState.currentOpening || !gameState.currentLine) return;
@@ -194,7 +229,7 @@ export function useChessGame() {
       try {
         const madeMove = game.move(move);
         userMoves.push(madeMove.san);
-      } catch (error) {
+      } catch {
         console.error('Invalid starting move:', move);
       }
     }
@@ -207,7 +242,10 @@ export function useChessGame() {
       userMoves,
       isComplete: false,
       isCorrect: true,
-      message: `Reprise de la ligne: ${prev.currentLine?.name}.`
+      message: `Reprise de la ligne: ${prev.currentLine?.name}.`,
+      hintLevel: 0,
+      hintFrom: null,
+      hintTo: null
     }));
 
     // Play Black's response if needed
@@ -218,9 +256,12 @@ export function useChessGame() {
           ...prev,
           moveIndex: nextMoveIndex + 1,
           userMoves: [...userMoves, blackMove.san],
-          message: `Les noirs ont joué ${blackMove.san}. À vous de jouer !`
+          message: `Les noirs ont joué ${blackMove.san}. À vous de jouer !`,
+          hintLevel: 0,
+          hintFrom: null,
+          hintTo: null
         }));
-      } catch (error) {
+      } catch {
         console.error('Invalid move in reset:', gameState.currentLine.moves[nextMoveIndex]);
       }
     }
@@ -235,7 +276,10 @@ export function useChessGame() {
       userMoves: [],
       isComplete: false,
       isCorrect: true,
-      message: 'Sélectionnez une ouverture pour commencer'
+      message: 'Sélectionnez une ouverture pour commencer',
+      hintLevel: 0,
+      hintFrom: null,
+      hintTo: null
     });
   }, [game]);
 
