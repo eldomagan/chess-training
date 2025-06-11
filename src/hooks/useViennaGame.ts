@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { Chess } from 'chess.js';
-import { ViennaLine, GameState, MoveResult } from '../types/chess';
+import { GameState, MoveResult } from '../types/chess';
 import { getRandomLine } from '../data/viennaLines';
 
 export function useViennaGame() {
@@ -11,7 +11,10 @@ export function useViennaGame() {
     userMoves: [],
     isComplete: false,
     isCorrect: true,
-    message: 'Cliquez sur "Nouvelle ligne" pour commencer'
+    message: 'Cliquez sur "Nouvelle ligne" pour commencer',
+    hintLevel: 0,
+    hintFrom: null,
+    hintTo: null
   });
 
   const startNewLine = useCallback(() => {
@@ -29,7 +32,10 @@ export function useViennaGame() {
       userMoves: ['e4', 'e5', 'Nc3'],
       isComplete: false,
       isCorrect: true,
-      message: `Ligne: ${newLine.name}. ${newLine.moves[3] ? `Les noirs jouent ${newLine.moves[3]}. À vous de jouer !` : 'Position de départ atteinte.'}`
+      message: `Ligne: ${newLine.name}. ${newLine.moves[3] ? `Les noirs jouent ${newLine.moves[3]}. À vous de jouer !` : 'Position de départ atteinte.'}`,
+      hintLevel: 0,
+      hintFrom: null,
+      hintTo: null
     });
 
     // Play Black's response if it exists
@@ -40,9 +46,12 @@ export function useViennaGame() {
           ...prev,
           moveIndex: 4,
           userMoves: ['e4', 'e5', 'Nc3', newLine.moves[3]],
-          message: `Les noirs ont joué ${newLine.moves[3]}. À vous de jouer !`
+          message: `Les noirs ont joué ${newLine.moves[3]}. À vous de jouer !`,
+          hintLevel: 0,
+          hintFrom: null,
+          hintTo: null
         }));
-      } catch (error) {
+      } catch {
         console.error('Invalid move in line:', newLine.moves[3]);
       }
     }
@@ -87,7 +96,7 @@ export function useViennaGame() {
               } else {
                 message = `Bien joué ! Les noirs répondent ${blackMove.san}. Continuez !`;
               }
-            } catch (error) {
+            } catch {
               console.error('Invalid black move:', nextMove);
             }
           }
@@ -98,7 +107,10 @@ export function useViennaGame() {
           moveIndex: newMoveIndex,
           userMoves: newUserMoves,
           isComplete,
-          message
+          message,
+          hintLevel: 0,
+          hintFrom: null,
+          hintTo: null
         }));
 
         return {
@@ -116,7 +128,10 @@ export function useViennaGame() {
         setGameState(prev => ({
           ...prev,
           isCorrect: false,
-          message: errorMessage
+          message: errorMessage,
+          hintLevel: 0,
+          hintFrom: null,
+          hintTo: null
         }));
 
         return {
@@ -126,7 +141,7 @@ export function useViennaGame() {
           isComplete: false
         };
       }
-    } catch (error) {
+    } catch {
       return {
         isValid: false,
         expectedMove: null,
@@ -138,15 +153,32 @@ export function useViennaGame() {
 
   const showHint = useCallback(() => {
     if (!gameState.currentLine || gameState.isComplete) return;
-    
+
     const expectedMove = gameState.currentLine.moves[gameState.moveIndex];
-    if (expectedMove) {
+    if (!expectedMove) return;
+
+    const clone = new Chess(game.fen());
+    const parsed = clone.move(expectedMove, { sloppy: true });
+    if (!parsed) return;
+
+    if (gameState.hintLevel === 0) {
       setGameState(prev => ({
         ...prev,
-        message: `Indice: Le coup théorique est ${expectedMove}`
+        hintLevel: 1,
+        hintFrom: parsed.from,
+        hintTo: null,
+        message: `Indice: Regardez la pièce sur ${parsed.from}`
+      }));
+    } else if (gameState.hintLevel === 1) {
+      setGameState(prev => ({
+        ...prev,
+        hintLevel: 2,
+        hintFrom: parsed.from,
+        hintTo: parsed.to,
+        message: `Indice: Le coup est ${parsed.san}`
       }));
     }
-  }, [gameState]);
+  }, [game, gameState]);
 
   const resetPosition = useCallback(() => {
     if (!gameState.currentLine) return;
@@ -162,7 +194,10 @@ export function useViennaGame() {
       userMoves: ['e4', 'e5', 'Nc3'],
       isComplete: false,
       isCorrect: true,
-      message: `Reprise de la ligne: ${prev.currentLine?.name}. Les noirs vont jouer ${prev.currentLine?.moves[3]}.`
+      message: `Reprise de la ligne: ${prev.currentLine?.name}. Les noirs vont jouer ${prev.currentLine?.moves[3]}.`,
+      hintLevel: 0,
+      hintFrom: null,
+      hintTo: null
     }));
 
     // Play Black's response
@@ -173,9 +208,12 @@ export function useViennaGame() {
           ...prev,
           moveIndex: 4,
           userMoves: ['e4', 'e5', 'Nc3', gameState.currentLine!.moves[3]],
-          message: `Les noirs ont joué ${gameState.currentLine!.moves[3]}. À vous de jouer !`
+          message: `Les noirs ont joué ${gameState.currentLine!.moves[3]}. À vous de jouer !`,
+          hintLevel: 0,
+          hintFrom: null,
+          hintTo: null
         }));
-      } catch (error) {
+      } catch {
         console.error('Invalid move in reset:', gameState.currentLine.moves[3]);
       }
     }
